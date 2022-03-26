@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streuobstwiesenzustand</title>
+
+    <!-- leaflet css -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin="" />
+
+    <!-- leaflet js -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+
+    <style>
+
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    #map {
+        width: 100%;
+        height: 100vh;
+    }
+
+    .info {
+	    padding: 6px 8px;
+	    font: 14px/16px Arial, Helvetica, sans-serif;
+	    background: white;
+	    background: rgba(255,255,255,0.8);
+	    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+	    border-radius: 5px;
+    }
+    .info h4 {
+	margin: 0 0 5px;
+	color: #777;
+    }
+
+    .legend {
+        padding: 6px 10px;
+        font: 17px Arial;
+        line-height: 20px;
+        color: #555;
+    }
+    .legend i {
+        width: 20px;
+        height: 18px;
+        float: left;
+        margin-right: 8px;
+        opacity: 0.7;
+    }
+    </style>
+
+</head>
+<body>
+
+    <!-- Einbindung Header
+    <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+        <header class="mdl-layout__header">
+        <div class="mdl-layout__header-row">
+
+            <span class="mdl-layout-title">Streuobstwiesenzustand</span>
+
+            <div class="mdl-layout-spacer"></div>
+
+            <nav class="mdl-navigation mdl-layout--large-screen-only">
+            <a class="mdl-navigation__link" href="https://rp.baden-wuerttemberg.de/rps/abt3/ref33/seiten/foerderung-baumschnitt">Schnittförderung</a>
+            <a class="mdl-navigation__link" href="https://streuobst.landwirtschaft-bw.de/pb/,Lde/Startseite">Streuobstportal</a>
+            <a class="mdl-navigation__link" href="https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/geowissenschaften/arbeitsgruppen/geographie/forschungsbereich/geoinformatik-gis/arbeitsgruppe/">Uni Tübingen</a>
+            </nav>
+        </div> -->
+
+    
+
+<div id="map"></div>
+
+<script src="wiese.js"></script>
+
+<script>
+
+var map = L.map('map').setView([48.565788, 9.173669], 16);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    noWrap: true,
+    minZoom: 14,
+    maxZoom: 18,
+    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+//Maßstab
+L.control.scale().addTo(map);
+
+//Nordpfeil
+var north = L.control({position: "topleft"});
+north.onAdd = function(map) {
+    var div = L.DomUtil.create("div", "info legend");
+    div.innerHTML = '<img src="nordpfeil.png">';
+    return div;
+}
+north.addTo(map);
+
+//Einbindung Wiesen
+L.geoJson(wiese).addTo(map)
+
+function getColor(d) {
+    return  d < 2 ? '#990000' :
+            d < 5 ? 'red' :
+            d < 8 ? '#ff6600' :
+            d < 11 ? 'yellow' :
+            d < 13 ? '#99ff33' :
+            d < 16 ? '#33cc33' :
+            d < 18 ? '#006600' :
+                     '#999999'
+}
+function style(feature) {
+    return {
+        fillColor: getColor(feature.properties.value),
+        weight: 2,
+        opacity: 1,
+        color: 'white',
+        dashArray: '3',
+        fillOpacity: 0.7
+    };
+}
+
+L.geoJson(wiese, {style: style}).addTo(map);
+
+//Hervorheben der Wiesen
+function highlightFeature(e) {
+	var layer = e.target;
+
+	layer.setStyle({
+		weight: 5,
+		color: '#666',
+		dashArray: '',
+		fillOpacity: 0.7
+	});
+
+	if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+		layer.bringToFront();
+	}
+	info.update(layer.feature.properties);
+}
+function resetHighlight(e) {
+	geojson.resetStyle(e.target);
+	info.update();
+}
+
+var geojson;
+
+function zoomToFeature(e) {
+	map.fitBounds(e.target.getBounds());
+}
+
+function onEachFeature(feature, layer) {
+	layer.on({
+		mouseover: highlightFeature,
+		mouseout: resetHighlight,
+		click: zoomToFeature
+	});
+}
+
+geojson = L.geoJson(wiese, {
+	style: style,
+    onEachFeature: onEachFeature
+}).addTo(map);
+
+//Infokasten
+var info = L.control();
+
+info.onAdd = function (map) {
+    this._div = L.DomUtil.create('div', 'info');
+    this.update();
+    return this._div;
+};
+info.update = function (props) {
+	this._div.innerHTML = '<h4>Wert der Wiese</h4>' +  (props ?
+		'<b>' + props.name + '</b><br />' + 'Gesamtwert: ' + props.value + '<br />' + 'Ökologischer Wert: ' + props.eco + '<br />' + 'Wirtschaftlicher Wert: ' + props.prod
+		: 'Maus auf gewünschte Wiese ziehen');
+};
+
+info.addTo(map);
+
+//Legende
+var legend = L.control({position: 'bottomright'});
+
+legend.onAdd = function (map) {
+
+var div = L.DomUtil.create('div', 'info legend'),
+    grades = [0, 2, 5, 8, 11, 13, 16, 17.5],
+    labels = [];
+
+for (var i = 0; i < grades.length-1; i++) {
+    div.innerHTML +=
+        '<i style="background:' + getColor(grades[i]) + '"></i> ' +
+        grades[i] + (grades[i+1] ? '&ndash;' + grades[i+1] + '<br>' : '+');
+}
+    return div;
+};
+
+legend.addTo(map);
+
+</script>
+
+
+</body>
+</html>
